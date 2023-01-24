@@ -1,0 +1,76 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using PathCreation;
+using UnityEngine.UI;
+public class Enemy : MonoBehaviour
+{
+    // Start is called before the first frame update
+    PathCreator path;
+    public float distanceTravelled;
+
+    public float speed;
+    public bool isDead;
+    public int islandID, enemyHealth;
+    int firsHealth;
+    void Start()
+    {
+        path = GetComponentInParent<EnemySpawner>().GetComponentInChildren<PathCreator>();
+        firsHealth = enemyHealth;
+        GetComponentInChildren<Slider>().value = 1;
+
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        if (!isDead)
+        {
+            distanceTravelled += speed * Time.deltaTime;
+            transform.position = path.path.GetPointAtDistance(distanceTravelled);
+            transform.rotation = path.path.GetRotationAtDistance(distanceTravelled);
+        }
+        
+    }
+    private void LateUpdate()
+    {
+        if (!isDead)
+        {
+            GetComponentInChildren<Slider>().transform.LookAt(Camera.main.transform.position);
+        }
+    }
+    public IEnumerator killedEnemy()
+    {
+        GameManager.Instance.playerLvl += .2f;
+        float floored = Mathf.Floor(GameManager.Instance.playerLvl);
+        float fractionalPart = GameManager.Instance.playerLvl - floored;
+        GameManager.Instance.playerLvlSlider.value = fractionalPart;
+        
+        GetComponent<Collider>().enabled = false;
+
+        GetComponent<Animator>().SetBool("isDead", true);
+
+        GameObject newMoney = ObjectPool.Instance.GetPooledObject(0); //parayı çekiyor
+        newMoney.transform.position = new Vector3(transform.position.x, transform.position.y + 0.5f, transform.position.z);
+        newMoney.transform.parent = GameManager.Instance.transform.GetChild(0); //MoniesOnGround
+        newMoney.AddComponent<MoneyTriggerActivate>(); //yere düşen parayı toplamak için trigger'ı açıyor bu script
+
+        yield return new WaitForSeconds(4);
+
+        ObjectPool.Instance.deactivateEnemy(this);
+    }
+
+    public void enemyTookDamge(int damage)
+    {
+        enemyHealth -= damage;
+        GetComponentInChildren<Slider>().value = (float)enemyHealth / (float)firsHealth;
+        if (enemyHealth <= 0)
+        {
+            isDead = true;
+            StartCoroutine(killedEnemy());
+            GetComponentInChildren<Slider>().gameObject.SetActive(false);
+        }
+    }
+
+
+}
